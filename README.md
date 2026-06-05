@@ -16,7 +16,7 @@ the LAN. Everything here is reverse-engineered for **interoperability with devic
 
 | Device | Unlock / Lock | Status & battery | Users / credentials | Notes |
 |--------|:---:|:---:|:---:|-------|
-| **Door Lock D100** | ✅ cloud (BLE fallback) | ✅ | ✅ read; mgmt WIP | Zigbee + BLE + HomeKey lock |
+| **Door Lock D100** | ✅ cloud | ✅ | ✅ read; mgmt WIP | Zigbee + BLE + HomeKey lock |
 
 ## Features
 
@@ -27,10 +27,11 @@ the LAN. Everything here is reverse-engineered for **interoperability with devic
 - 🧑‍🤝‍🧑 **"Who opened the door" events** — each unlock/lock is decoded into *who* (user name)
   and *how* (fingerprint / password / NFC / key / remote / auto) and fired on the HA bus as
   `aquara_local_event`, so you can trigger automations. See [Automations](#automations--who-opened-the-door).
-- 📡 Optional **BLE** path (via an ESP32 ESPHome `bluetooth_proxy`), **preferred automatically when
-  the lock is in range of a proxy** (local + instant), with cloud as fallback. Plus a documented
-  **local LAN** path for the truly offline-minded — see the docs below.
 - 🔑 Pure email/password login (no developer account, no OTP, no `.so`).
+- 🔬 **BLE** and **local-LAN (TUTK PPPP)** paths are reverse-engineered and documented, but **not
+  used for control** — the lock rejects standalone BLE centrals, and the app never sends the unlock
+  over the local hub channel (so its command format is unknown). **Cloud is the control path.**
+  See [docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md) §3–4 for the full findings.
 
 ## Install (HACS)
 
@@ -49,26 +50,25 @@ Regions: `SEA` (rpc-au) · `CN` (rpc.aqara.cn) · `US` (rpc-us) · `EU` (rpc-ger
 - For remote unlock: the lock's **remote operation enabled** and the **hub online** — the same
   condition the official app needs.
 
-## How it works (three paths)
+## How it works (three paths, one used)
 
-| Path | Transport | Needs |
-|------|-----------|-------|
-| **Cloud** | `POST /matter/write` (Aqara's Matter-shaped spec API) → hub → Zigbee | internet + hub |
-| **BLE** | Mijia/MIoT BLE `01/74` AES-CCM, cloud-assisted handshake | ESP32 `bluetooth_proxy` |
-| **Local (LAN)** | TUTK PPCS P2P tunnel to the hub, same command on-LAN | cloud-issued P2P creds |
+| Path | Transport | Status |
+|------|-----------|--------|
+| **Cloud** ✅ | `POST /matter/write` (Aqara's Matter-shaped spec API) → hub → Zigbee | **used for control** (verified) |
+| **BLE** 🔬 | Mijia/MIoT BLE `01/74` AES-CCM, cloud-assisted handshake | protocol solved; standalone GATT connect **blocked** by the lock |
+| **Local (LAN)** 🔬 | TUTK PPPP/Kalay P2P tunnel to the hub | cipher + transport + login solved; **the unlock command isn't sent locally by the app** → format unknown |
 
 > The D100 is **not** a native Matter device — `/matter/write` is Aqara's internal data model
 > applied to a Zigbee lock. Details in the docs.
 
-### Command path selection (BLE-first)
+### Command path: cloud-only
 
-When you press unlock/lock, the integration checks whether a connectable Bluetooth proxy can
-currently reach the lock (`bluetooth.async_ble_device_from_address(..., connectable=True)`):
-
-- **In BLE range** → tries **BLE first** (local, instant), falls back to **cloud** if it fails.
-- **Out of range** → goes **cloud-first**, with BLE as the fallback.
-
-Whichever path succeeds first wins; an error is only raised if *both* fail.
+Control is **cloud-only** by default — the reliable, verified path. BLE-direct is disabled
+(`BLE_CONTROL_ENABLED=False` in `const.py`): the D100 refuses a standalone central's GATT
+connection, so a BLE attempt would just hang before falling back. The local-LAN path's transport
+and login are solved (pure Python, see `local.py`), but the lock *command* over the hub is
+unresolved — the official app routes unlock via cloud/BLE, never the local hub channel, so there's
+no command frame to reproduce. The full reverse-engineering record is in the docs.
 
 ## Automations — "who opened the door"
 

@@ -58,3 +58,4 @@ tools/login_plain_test.py
 tools/__pycache__/
 tools/.hluda_path
 captures/rn_bundle/*.bundle
+tools/lock_ui_coords.json

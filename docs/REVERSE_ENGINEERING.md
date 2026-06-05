@@ -16,7 +16,7 @@ the engineering log: what was tried, the dead ends, every tool used, and the got
 |------|--------------|-------|--------|
 | **Cloud** | `POST /matter/write {data:{"2.148.35011.0":""},did,…}` → Aqara cloud → hub → Zigbee | internet + hub online + "remote operation" enabled | ✅ **works, shipped** |
 | **BLE** | MIoT/Mijia BLE: cloud handshake → `01/74` AES-CCM openLock over GATT | an ESP32 ESPHome `bluetooth_proxy` near the door | 🟡 protocol solved; **standalone GATT connect is blocked by the lock** (it only accepts a central already bonded to the phone — see §3) |
-| **Local** | TUTK PPPP/Kalay P2P tunnel to the hub on the LAN, carrying the same Matter command | cloud-issued P2P creds (cacheable) + LAN reachability to the hub | ✅ **WORKS — verified live**: pure-Python (cipher + PPPP transport), no `.so`/frida/phone; the D100 physically unlocked (`{"code":"0"}`) |
+| **Local** | TUTK PPPP/Kalay P2P tunnel to the hub on the LAN | cloud-issued P2P creds (cacheable) + LAN reachability to the hub | 🟡 **transport + login solved** (pure-Python cipher + PPPP, hub returns `{"code":0}` to login); **the unlock *command* is NOT yet working** — see §4.5 |
 
 All three ultimately deliver the **same command**: Matter DoorLock trait `2.148.35011.0 = ""`.
 
@@ -208,8 +208,9 @@ datagram is wrapped by the Layer-3a cipher**. Message types observed/used:
 `PpcsUdpTransport` driving the cipher'd PPPP handshake and the lumi Matter command. Code:
 `local.py` (`ppcs_encrypt`, `build_drw`, `encode_p2p_did`, `PpcsUdpTransport`, `prepare_local_session`).
 
-✅ **VERIFIED LIVE (2026-06)** — the D100 physically unlocked over this pure-Python path. The full
-recipe, all confirmed against the real hub:
+**Status (honest): transport + login = SOLVED; the unlock command = NOT yet working.**
+
+✅ **Verified working against the real hub:**
 1. `did_hub` = the device that owns the P2P stream (here the **G410 doorbell** `lumi.camera.agl006`,
    not the Zigbee lock — the lock answers `p2p/info` with `code=1730`). Find it by probing `p2p/info`.
 2. `GET /devex/camera/p2p/info?did=did_hub` → `initStringApp` (=`<init>:aqarakr19kn`), `p2pId`.
@@ -218,13 +219,25 @@ recipe, all confirmed against the real hub:
    a local clock value gets `{"code":-1}`).
 4. **LAN discovery**: send a *ciphered* `MSG_LAN_SEARCH` (`enc(F1 30 0000)`) to `hub:32108`; the hub
    replies from a **fresh, per-session UDP port** — use that port (a bare PUNCH to 32108 is ignored).
-5. PUNCH that port → ready; `MSG_DRW(chan0, idx0)` = lumi **LOGIN** type 0x1000 → `{"code":0}`.
-6. `MSG_DRW(chan0, idx1)` = lumi **type 0x1020** carrying the cloud `/matter/write` body
-   `{"data":{"2.148.35011.0":""},"did":lock_did,"pwd":"","type":0}` → `{"code":"0"}` and the lock opens.
-   (Only lumi type **0x1020** runs the trait + returns the full RPC `{"state":"end"}`; other types
-   reply `"unsupport cmd"`.)
+5. PUNCH that port → ready; `MSG_DRW(chan0, idx0)` = lumi **LOGIN** type 0x1000 → hub returns
+   `{"code":0,"message":"success"}`. **This much is rock-solid and reproducible.**
 
-Test tool: `tools/local_hub_test.py` (`--dry` = login only; `--op open/close`).
+❌ **NOT solved — the actual unlock command:**
+- Sending the cloud `/matter/write` body `{"data":{"2.148.35011.0":""},"did":lock_did,…}` as a lumi
+  frame of type **0x1020** gets `{"code":"0","message":"success"}` + `{"state":"end"}` from the hub,
+  **but the lock does NOT physically move** (confirmed by the owner watching the door). So `code:0`
+  here only means "frame parsed", not "lock actuated". The correct lumi type/body is still unknown.
+- **Why we can't just capture it:** decoding the real `hub_unlock_local.pcap` with the now-working
+  cipher shows it contains **only** PUNCH + login + keepalives — **no matter command at all**. i.e.
+  the official app does **not** send the unlock over the local-hub channel; it uses **cloud or BLE**
+  for the command and keeps the local channel for session/status only. (An earlier note that frame
+  191 was the "unlock" was wrong — it decrypts to a `lumi 0x1024` keepalive.)
+- **To finish this** one would need to either (a) force the app to route the command locally (block
+  cloud + BLE, if the app even has that path) and capture it, or (b) brute the lumi command
+  envelope against the hub with lock-state verification. Until then, **Cloud is the working path.**
+
+Test tool: `tools/local_hub_test.py` (`--dry` = login only, ✅ works; `--op open/close` reaches the
+hub and gets `code:0` but does not yet actuate the lock).
 
 ---
 

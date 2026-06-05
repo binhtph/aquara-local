@@ -48,12 +48,15 @@ WHAT THIS MODULE PROVIDES
     • `build_login_payload()` / `build_command_payload()` — the JSON payloads.
     • `ppcs_encrypt()` / `ppcs_decrypt()` — the TUTK `cs2p2p__P2P_Proprietary_*` cipher,
       reimplemented bit-exact in pure Python (verified 9/9 vs captured traffic). No `.so` needed.
+    • `PpcsUdpTransport` — the full PPPP/Kalay UDP transport (LAN discovery on :32108, PUNCH→RDY,
+      reliable MSG_DRW with index/ACK, MSG_ALIVE). ✅ Drives a real login: the hub returns
+      `{"code":0,"message":"success"}`.
 WHAT IT DOES NOT (yet)
-    • The PPPP/Kalay *session* state machine (Layer 3 transport): the UDP handshake that opens
-      a P2P channel to the hub on the LAN (LanSearch/connect/ack, the `f1xx` control packets)
-      before the lumi data frames flow. The cipher those packets use is now solved; what remains
-      is the packet sequencing. A `PpcsTransport` Protocol is defined so a concrete UDP backend
-      can be plugged in once the session handshake is replayed from `captures/hub/*.pcap`.
+    • Actuate the lock. The hub accepts a lumi 0x1020 "command" and replies `{"code":0}` but the
+      D100 does NOT physically move (owner-confirmed). The official app sends the unlock over
+      cloud/BLE — NOT this local channel — so the real command frame couldn't be captured. The
+      correct lumi command type/body is still unknown. See docs/REVERSE_ENGINEERING.md §4.5.
+      → For working control today, use the Cloud path (cloud.py).
 """
 
 from __future__ import annotations
@@ -75,9 +78,11 @@ LUMI_MAGIC = b"lumi"  # 0x6c756d69
 # lumi frame types observed on the wire
 LUMI_TYPE_LOGIN = 0x1000  # login req (resp 0x1001)
 LUMI_TYPE_KEEPALIVE = 0x1024  # keepalive (resp 0x1025)
-LUMI_TYPE_COMMAND = 0x1020  # Matter command (a.k.a. /matter/write) — resp 0x1021 + {"state":"end"}
-#   ^ found live: only 0x1020 ran the trait and returned the full RPC cycle
-#     ({"code":0} + {"code":"0"} + {"state":"end"}); other types reply "unsupport cmd".
+LUMI_TYPE_COMMAND = 0x1020  # candidate Matter-command type — hub replies {"code":0}+{"state":"end"}
+#   ⚠️ UNCONFIRMED: 0x1020 is the only type that returns a full RPC cycle (others say
+#   "unsupport cmd"), but sending the unlock body this way returns code:0 WITHOUT actuating the
+#   lock (owner-confirmed). The real command type/body is still unknown — see docs §4.5.
+#   Login (0x1000) + the whole transport ARE solved; only the command remains.
 
 
 # --- Layer 3a: TUTK PPCS proprietary cipher (REIMPLEMENTED, bit-exact) ------------------
@@ -196,8 +201,11 @@ def build_command_payload(trait: str, lock_did: str, value: Any = "") -> bytes:
     native layer routes that *same* body over the local hub when on-LAN (see cloud.matter_write).
     ``lock_did`` is the **D100's** DID (the hub/G410 relays it over Zigbee); the PPPP session
     itself is opened to the **hub's** DID, not the lock's. Carry this in a lumi frame of type
-    :data:`LUMI_TYPE_COMMAND` (0x1020). ✅ **Verified live**: unlock returned ``{"code":"0"}`` and
-    the D100 physically opened.
+    :data:`LUMI_TYPE_COMMAND` (0x1020).
+
+    ⚠️ **NOT yet working:** the hub returns ``{"code":"0"}`` to this but the lock does **not**
+    actuate (owner-confirmed). The correct local command envelope is still unknown — see
+    docs/REVERSE_ENGINEERING.md §4.5. Login + transport are solved; the command is not.
     """
     return json.dumps(
         {"data": {trait: value}, "did": lock_did, "pwd": "", "type": 0},

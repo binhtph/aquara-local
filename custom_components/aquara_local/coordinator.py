@@ -18,6 +18,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .ble import LockBleError, run_open_lock
 from .cloud import AqaraAuthError, AqaraCloud, login_with_password
 from .const import (
+    BLE_CONTROL_ENABLED,
     CONF_AREA,
     CONF_DISTRICT,
     CONF_EMAIL,
@@ -280,11 +281,11 @@ class AqaraD100Coordinator(DataUpdateCoordinator[dict[str, LockState]]):
 
     # ---- unlock actions ---------------------------------------------------
     async def async_open(self, lock: LockInfo) -> None:
-        """Unlock — BLE first (if a proxy can reach the lock), else/then cloud."""
+        """Unlock via the cloud (Matter unlockDoor). See _command for the path policy."""
         await self._command(lock, "unlock", self.cloud.remote_unlock, OPEN_OPEN, "6")
 
     async def async_close(self, lock: LockInfo) -> None:
-        """Lock — BLE first (if reachable), else/then cloud (Matter lockDoor)."""
+        """Lock via the cloud (Matter lockDoor). See _command for the path policy."""
         await self._command(lock, "lock", self.cloud.remote_lock, OPEN_CLOSE, "4")
 
     @callback
@@ -305,13 +306,19 @@ class AqaraD100Coordinator(DataUpdateCoordinator[dict[str, LockState]]):
             return False
 
     async def _command(self, lock, verb, cloud_call, ble_op, optimistic_state) -> None:
-        """Run a lock command, **preferring BLE when a proxy can reach the lock**.
+        """Run a lock command. **Cloud-only by default** (the reliable, verified path).
 
-        Order: if the lock is in Bluetooth range of a proxy → [BLE, cloud]; otherwise
-        → [cloud, BLE]. Whichever succeeds first wins; both errors are reported only if
-        both fail. (BLE is local/instant; cloud needs internet + the hub online.)
+        BLE-direct control is DISABLED by default (``BLE_CONTROL_ENABLED=False``): testing proved
+        the D100 rejects a standalone central's GATT connection (it only accepts the phone's bonded
+        link), so a BLE attempt would just hang ~30 s before falling back. When the flag is on AND
+        a connectable proxy is in range, BLE is tried first, then cloud. See const.py / docs §3.
+        Local-hub (LAN) control is not wired: the app never sends the lock command over the hub
+        channel, so its format is unknown — see docs §4.5. Cloud is the only working control path.
         """
-        order = ["ble", "cloud"] if self._ble_available(lock) else ["cloud", "ble"]
+        if BLE_CONTROL_ENABLED and self._ble_available(lock):
+            order = ["ble", "cloud"]
+        else:
+            order = ["cloud"]
         errors: dict[str, str] = {}
         for method in order:
             try:
