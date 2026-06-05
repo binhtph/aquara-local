@@ -6,7 +6,7 @@ All of these are public/owner-recoverable interoperability constants.
 
 from __future__ import annotations
 
-DOMAIN = "aqara_d100"
+DOMAIN = "aquara_local"
 
 # ---- Cloud (private Aqara API) -------------------------------------------
 # Fixed app credentials for Aqara Home v6.1.6 (exposed via native getSignHead).
@@ -53,9 +53,12 @@ CONF_LOCK_MAC = "mac"
 CONF_LOCK_MODEL = "model"
 
 # ---- Behaviour ------------------------------------------------------------
-# Cloud is polled for lock_state / battery. Unlock/lock goes out over BLE
-# (through an ESPHome Bluetooth proxy near the door) after a cloud handshake.
+# Cloud is polled for lock_state / battery; the lock event log is polled faster
+# so HA can fire near-realtime "who opened the door" events for automations.
 SCAN_INTERVAL_SECONDS = 60
+EVENT_POLL_SECONDS = 12  # how often to check the lock event log (who unlocked)
+# Home Assistant bus event fired on each new lock event (automation trigger).
+EVENT_LOCK = f"{DOMAIN}_event"
 MANUFACTURER = "Aqara"
 DEFAULT_MODEL = "Door Lock D100 (dp1a)"
 

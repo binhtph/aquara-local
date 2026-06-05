@@ -25,6 +25,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     async_setup_services(hass)
+    # near-realtime "who opened the door" events → automation triggers
+    await coordinator.async_start_events()
+    entry.async_on_unload(coordinator.stop_events)
     return True
 
 

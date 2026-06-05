@@ -222,7 +222,7 @@ enable : each credential → 03/21 validRange, deadline = ffffffff (permanent)  
 When the phone is on the **same LAN as the hub (G410)**, the app does not send the command to the
 cloud — it sends it **directly to the hub** over a **ThroughTek (TUTK) PPCS** P2P tunnel, and the
 hub relays it to the lock over Zigbee. The application command is **identical** to the cloud
-`/matter/write` body. Implementation/scaffold: `custom_components/aqara_d100/local.py`.
+`/matter/write` body. Implementation/scaffold: `custom_components/aquara_local/local.py`.
 
 ### 3.1 Stack (top → bottom)
 ```
@@ -288,9 +288,9 @@ app/src/ble/LockController.ts   handshake + unlock + setValidity + createPasswor
 app/src/ble/BlePlxClient.ts     ble-plx connect retry + write/monitor
 tools/aqara_sign.py             sign reimpl (self-test 5/5)
 tools/ble_validity.py / ble_delgroup.py / ble_cmd.py   inject BLE commands via piggyback
-custom_components/aqara_d100/cloud.py    Cloud API (login, sign, matter/write, p2p creds)
-custom_components/aqara_d100/ble.py      BLE API (handshake + openLock via ESP proxy)
-custom_components/aqara_d100/local.py    Local API (lumi framing + PPCS session, Part 3)
+custom_components/aquara_local/cloud.py    Cloud API (login, sign, matter/write, p2p creds)
+custom_components/aquara_local/ble.py      BLE API (handshake + openLock via ESP proxy)
+custom_components/aquara_local/local.py    Local API (lumi framing + PPCS session, Part 3)
 ```
 
 See also **[REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md)** for the full how-it-was-cracked

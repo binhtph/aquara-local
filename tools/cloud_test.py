@@ -28,7 +28,7 @@ import sys
 import types
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-PKG_DIR = ROOT / "custom_components" / "aqara_d100"
+PKG_DIR = ROOT / "custom_components" / "aquara_local"
 _ns = types.ModuleType("aqd100")
 _ns.__path__ = [str(PKG_DIR)]
 sys.modules["aqd100"] = _ns

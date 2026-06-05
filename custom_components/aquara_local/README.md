@@ -51,7 +51,7 @@ path below.
 **HACS (custom repository):** add this repo as an *Integration*, install
 "Aqara D100 Lock", restart HA.
 
-**Manual:** copy `custom_components/aqara_d100/` into your HA `config/custom_components/`
+**Manual:** copy `custom_components/aquara_local/` into your HA `config/custom_components/`
 and restart.
 
 Then **Settings → Devices & Services → Add Integration → "Aqara D100 Lock"**,
@@ -89,12 +89,12 @@ schedule *writes* are not captured yet, so they're only reachable via `matter_wr
 
 | Service | What it does |
 |---------|--------------|
-| `aqara_d100.unbolt` | Fully retract the bolt (Matter unbolt). |
-| `aqara_d100.identify` | Beep/flash the lock to locate it (safe test). |
-| `aqara_d100.delete_credential` | Remove a PIN/NFC/fingerprint by type + value. |
-| `aqara_d100.set_credential_validity` | Disable / re-enable a credential. |
-| `aqara_d100.create_user_group` / `delete_user_group` / `rename_user_group` | Manage user groups. |
-| `aqara_d100.matter_write` | Advanced escape hatch: write any Matter trait (see [CLOUD_API.md](../../docs/CLOUD_API.md)). |
+| `aquara_local.unbolt` | Fully retract the bolt (Matter unbolt). |
+| `aquara_local.identify` | Beep/flash the lock to locate it (safe test). |
+| `aquara_local.delete_credential` | Remove a PIN/NFC/fingerprint by type + value. |
+| `aquara_local.set_credential_validity` | Disable / re-enable a credential. |
+| `aquara_local.create_user_group` / `delete_user_group` / `rename_user_group` | Manage user groups. |
+| `aquara_local.matter_write` | Advanced escape hatch: write any Matter trait (see [CLOUD_API.md](../../docs/CLOUD_API.md)). |
 
 See [docs/CLOUD_API.md](../../docs/CLOUD_API.md) and [docs/BLE_API.md](../../docs/BLE_API.md)
 for the full API surface.
@@ -130,7 +130,7 @@ command the integration reflects the new state optimistically and re-polls.
   ```yaml
   logger:
     logs:
-      custom_components.aqara_d100: debug
+      custom_components.aquara_local: debug
   ```
 - **Verify the cloud path outside HA** — `AQARA_TEST_ACTION=unlock python3 tools/cloud_test.py`
   fires the exact command the integration uses (⚠️ opens the real door).
@@ -164,7 +164,7 @@ dump the discovered GATT layout on connect, and fix the UUIDs in `gatt.py` if th
 ```yaml
 logger:
   logs:
-    custom_components.aqara_d100: debug
+    custom_components.aquara_local: debug
 ```
 
 ## Security note

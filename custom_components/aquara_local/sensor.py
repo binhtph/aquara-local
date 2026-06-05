@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -57,9 +58,8 @@ class AqaraD100LastEventSensor(AqaraD100Entity, SensorEntity):
     """Timestamp of the most recent lock event (from the cloud event history).
 
     This is how Home Assistant learns about opens that happened *outside* HA — e.g.
-    a PIN/NFC/manual unlock. Polled with the coordinator (~60 s), so it is near-real-time,
-    not instant. The raw `lock_local_log` value is exposed as an attribute (decoding the
-    who/how is still TODO).
+    a PIN/NFC/manual unlock. The event log is polled fast (~12 s) and decoded into
+    who/how; each new event also fires the ``<domain>_event`` bus event for automations.
     """
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
@@ -77,11 +77,24 @@ class AqaraD100LastEventSensor(AqaraD100Entity, SensorEntity):
         return datetime.fromtimestamp(state.last_event_ts / 1000, tz=timezone.utc)
 
     @property
-    def extra_state_attributes(self) -> dict[str, str] | None:
+    def extra_state_attributes(self) -> dict[str, Any] | None:
         state = self.coordinator.data.get(self._lock.did) if self.coordinator.data else None
-        if not state or not state.last_event_raw:
+        if not state:
             return None
-        return {"raw": state.last_event_raw}
+        ev = state.last_event or {}
+        attrs: dict[str, Any] = {}
+        if ev:
+            attrs.update(
+                {
+                    "action": ev.get("action"),
+                    "method": ev.get("method"),
+                    "user": ev.get("user"),
+                    "user_id": ev.get("user_id"),
+                }
+            )
+        if state.last_event_raw:
+            attrs["raw"] = state.last_event_raw
+        return attrs or None
 
 
 class AqaraD100CredentialCountSensor(AqaraD100Entity, SensorEntity):

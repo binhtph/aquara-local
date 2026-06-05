@@ -9,9 +9,10 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .ble import LockBleError, run_open_lock
@@ -27,8 +28,12 @@ from .const import (
     CONF_PASSWORD,
     CONF_TOKEN,
     CONF_USER_ID,
+    DOMAIN,
+    EVENT_LOCK,
+    EVENT_POLL_SECONDS,
     SCAN_INTERVAL_SECONDS,
 )
+from .events import build_uid_map, decode_log
 from .protocol import OPEN_CLOSE, OPEN_OPEN
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,7 +58,8 @@ class LockState:
     extra: dict[str, Any] = field(default_factory=dict)
     credentials: list[dict[str, Any]] = field(default_factory=list)
     last_event_ts: int | None = None  # ms epoch of the most recent lock event
-    last_event_raw: str | None = None  # raw lock_local_log value (decode is TODO)
+    last_event_raw: str | None = None  # raw lock_local_log value
+    last_event: dict[str, Any] | None = None  # decoded {action, method, user, user_id, ...}
 
 
 # Cloud lock_state → is_locked (None = unknown). 0/6 open, 1/4 locked, 2 error.
@@ -85,6 +91,10 @@ class AqaraD100Coordinator(DataUpdateCoordinator[dict[str, LockState]]):
         ]
         self._ble_lock = asyncio.Lock()
         self._relogin_lock = asyncio.Lock()
+        # who-opened-the-door event detection
+        self._seen_event_ts: dict[str, int] = {}  # did → newest log ts already handled
+        self._event_unsub = None
+        self._events_seeded = False
 
     # ---- token refresh ----------------------------------------------------
     async def _relogin(self) -> None:
@@ -166,6 +176,79 @@ class AqaraD100Coordinator(DataUpdateCoordinator[dict[str, LockState]]):
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("credentials poll failed for %s: %s", lock.did, err)
 
+    # ---- who-opened-the-door events (near-realtime) ----------------------
+    async def async_start_events(self) -> None:
+        """Seed the baseline (no firing) then poll the lock log fast for new opens."""
+        await self._async_poll_events(seed_only=True)
+        self._event_unsub = async_track_time_interval(
+            self.hass, self._async_poll_events, timedelta(seconds=EVENT_POLL_SECONDS)
+        )
+
+    @callback
+    def stop_events(self) -> None:
+        if self._event_unsub:
+            self._event_unsub()
+            self._event_unsub = None
+
+    async def _async_poll_events(self, now=None, *, seed_only: bool = False) -> None:
+        """Fire ``EVENT_LOCK`` on every new lock-log entry → HA automation triggers.
+
+        Each event carries {did, name, action, method, user, user_id, timestamp}. On the
+        first run we only record a baseline so historical opens don't fire on startup.
+        """
+        for lock in self.locks:
+            try:
+                hist = await self._with_auth_retry(
+                    lambda lock=lock: self.cloud.lock_history(lock.did, size=8)
+                )
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug("event poll failed for %s: %s", lock.did, err)
+                continue
+            entries = (
+                (hist.get("resultList") or hist.get("data") or [])
+                if isinstance(hist, dict)
+                else []
+            )
+            if not entries:
+                continue
+            state = self.data.get(lock.did) if self.data else None
+            uid_map = build_uid_map(state.credentials if state else [])
+            seen = self._seen_event_ts.get(lock.did, 0)
+            fresh: list[tuple[int, dict]] = []
+            for e in entries:
+                ts = e.get("timeStamp") or e.get("timestamp")
+                ts = int(ts) if ts and str(ts).isdigit() else 0
+                if ts > seen:
+                    fresh.append((ts, e))
+            if fresh:
+                self._seen_event_ts[lock.did] = max(ts for ts, _ in fresh)
+            if not fresh:
+                continue
+            fresh.sort(key=lambda x: x[0])  # oldest → newest
+            decoded_latest = None
+            for _ts, e in fresh:
+                decoded = decode_log(e, uid_map)
+                decoded_latest = decoded
+                if not seed_only:
+                    self.hass.bus.async_fire(
+                        EVENT_LOCK,
+                        {
+                            "did": lock.did,
+                            "name": lock.name,
+                            "action": decoded["action"],
+                            "method": decoded["method"],
+                            "user": decoded["user"],
+                            "user_id": decoded["user_id"],
+                            "timestamp": decoded["timestamp"],
+                        },
+                    )
+                    _LOGGER.debug("fired %s: %s", EVENT_LOCK, decoded)
+            if state and decoded_latest:
+                state.last_event = decoded_latest
+                state.last_event_ts = decoded_latest.get("timestamp") or state.last_event_ts
+                state.last_event_raw = decoded_latest.get("raw")
+                self.async_set_updated_data(self.data)
+
     # ---- helpers for entities --------------------------------------------
     def is_locked(self, did: str) -> bool | None:
         state = self.data.get(did) if self.data else None
@@ -197,44 +280,62 @@ class AqaraD100Coordinator(DataUpdateCoordinator[dict[str, LockState]]):
 
     # ---- unlock actions ---------------------------------------------------
     async def async_open(self, lock: LockInfo) -> None:
-        """Unlock: cloud remote-unlock first, BLE proxy as fallback."""
+        """Unlock — BLE first (if a proxy can reach the lock), else/then cloud."""
         await self._command(lock, "unlock", self.cloud.remote_unlock, OPEN_OPEN, "6")
 
     async def async_close(self, lock: LockInfo) -> None:
-        """Lock: cloud remote-lock (Matter lockDoor) first, BLE proxy as fallback."""
+        """Lock — BLE first (if reachable), else/then cloud (Matter lockDoor)."""
         await self._command(lock, "lock", self.cloud.remote_lock, OPEN_CLOSE, "4")
 
-    async def _command(self, lock, verb, cloud_call, ble_op, optimistic_state) -> None:
-        """Run a lock command cloud-first, falling back to BLE.
-
-        On cloud success the result is logged (enable debug logging to see the raw
-        /matter/write response). On cloud failure we try BLE; if BLE is unavailable
-        too, the *cloud* error is surfaced to the UI — not a misleading Bluetooth one.
-        """
+    @callback
+    def _ble_available(self, lock: LockInfo) -> bool:
+        """True if a connectable Bluetooth adapter/proxy can currently reach the lock."""
+        if not lock.mac:
+            return False
         try:
-            result = await self._with_auth_retry(lambda: cloud_call(lock.did))
-        except AqaraAuthError as err:
-            raise HomeAssistantError(f"Aqara authentication failed: {err}") from err
-        except Exception as cloud_err:  # noqa: BLE001 — cloud may be down / hub offline
-            _LOGGER.warning(
-                "cloud %s failed for %s (%s) — trying BLE fallback",
-                verb, lock.did, cloud_err,
+            from homeassistant.components import bluetooth
+
+            return (
+                bluetooth.async_ble_device_from_address(
+                    self.hass, lock.mac.upper(), connectable=True
+                )
+                is not None
             )
+        except Exception:  # noqa: BLE001 — bluetooth integration may be absent
+            return False
+
+    async def _command(self, lock, verb, cloud_call, ble_op, optimistic_state) -> None:
+        """Run a lock command, **preferring BLE when a proxy can reach the lock**.
+
+        Order: if the lock is in Bluetooth range of a proxy → [BLE, cloud]; otherwise
+        → [cloud, BLE]. Whichever succeeds first wins; both errors are reported only if
+        both fail. (BLE is local/instant; cloud needs internet + the hub online.)
+        """
+        order = ["ble", "cloud"] if self._ble_available(lock) else ["cloud", "ble"]
+        errors: dict[str, str] = {}
+        for method in order:
             try:
-                await self._ble_op(lock, ble_op)
-            except HomeAssistantError as ble_err:
-                raise HomeAssistantError(
-                    f"{verb.capitalize()} failed. Cloud: {cloud_err}. "
-                    f"BLE fallback: {ble_err}"
-                ) from cloud_err
-            return
-        # cloud accepted (code 0); reflect optimistically and re-poll for the real state.
-        _LOGGER.debug("cloud %s accepted for %s: %s", verb, lock.did, result)
-        state = self.data.get(lock.did) if self.data else None
-        if state:
-            state.lock_state = optimistic_state
-            self.async_set_updated_data(self.data)
-        await self.async_request_refresh()
+                if method == "ble":
+                    await self._ble_op(lock, ble_op)  # sets its own optimistic state
+                else:
+                    result = await self._with_auth_retry(lambda: cloud_call(lock.did))
+                    _LOGGER.debug("cloud %s accepted for %s: %s", verb, lock.did, result)
+                    state = self.data.get(lock.did) if self.data else None
+                    if state:
+                        state.lock_state = optimistic_state
+                        self.async_set_updated_data(self.data)
+                    await self.async_request_refresh()
+                _LOGGER.debug("%s via %s ok for %s", verb, method, lock.did)
+                return
+            except AqaraAuthError as err:
+                raise HomeAssistantError(f"Aqara authentication failed: {err}") from err
+            except Exception as err:  # noqa: BLE001 — try the next method
+                errors[method] = str(err)
+                _LOGGER.warning("%s via %s failed for %s: %s", verb, method, lock.did, err)
+        raise HomeAssistantError(
+            f"{verb.capitalize()} failed (tried {' → '.join(order)}). "
+            + "; ".join(f"{m}: {e}" for m, e in errors.items())
+        )
 
     async def _ble_op(self, lock: LockInfo, op_type: int) -> None:
         async with self._ble_lock:  # one BLE session at a time per account

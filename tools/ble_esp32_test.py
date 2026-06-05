@@ -4,7 +4,7 @@
 No Home Assistant required. The Mac talks to the ESP32 over the ESPHome native
 API (TCP); the ESP32 is the BLE radio next to the door — this sidesteps macOS
 CoreBluetooth/TCC entirely. It reuses the SAME ported protocol/crypto/cloud code
-that the HA integration uses (custom_components/aqara_d100/), so a success here
+that the HA integration uses (custom_components/aquara_local/), so a success here
 means the integration's BLE leg works.
 
 What it does:
@@ -45,7 +45,7 @@ from aioesphomeapi import APIClient
 
 # --- import the ported modules WITHOUT running the HA-coupled package __init__ ---
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-PKG_DIR = ROOT / "custom_components" / "aqara_d100"
+PKG_DIR = ROOT / "custom_components" / "aquara_local"
 _ns = types.ModuleType("aqd100")
 _ns.__path__ = [str(PKG_DIR)]
 sys.modules["aqd100"] = _ns

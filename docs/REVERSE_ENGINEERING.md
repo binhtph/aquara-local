@@ -107,7 +107,7 @@ hooking `EncryptModule.encryptAESCCM`) — the self-built openLock packet matche
 **Gotcha:** a *standalone* central (ESP32/laptop) connecting to the lock is **rejected** by the
 lock — the proven unlock used **piggyback injection** into the app's existing GATT link
 (`frida/ble_inject.js`). The ESP32 proxy path also needs the lock to accept a fresh connection
-(blocked when the phone holds the link). Implementation: `custom_components/aqara_d100/{ble,
+(blocked when the phone holds the link). Implementation: `custom_components/aquara_local/{ble,
 gatt,protocol,crypto}.py` + `tools/ble_esp32_test.py` + `tools/esp32-d100-proxy.yaml`.
 
 ---
@@ -163,7 +163,7 @@ Layer 3  TUTK PPCS         cs2p2p__P2P_Proprietary_Encrypt(KEY, plaintext) → U
 
 So a fully-local unlock = 3 cloud calls (cacheable) for the session creds + a PPCS tunnel that
 encrypts the lumi-framed Matter command with key `<ppcs-key>`. Implemented as far as possible
-in `custom_components/aqara_d100/local.py`; the remaining piece is a `PpcsTransport` backend
+in `custom_components/aquara_local/local.py`; the remaining piece is a `PpcsTransport` backend
 (the TUTK cipher — callable via frida `NativeFunction`, or reimplemented from the Kalay research).
 
 ---

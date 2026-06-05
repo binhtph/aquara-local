@@ -4,7 +4,7 @@ Everything the lock can do **through the Aqara private cloud** — no Bluetooth,
 Commands go cloud → your hub → Zigbee → lock, exactly like the official app's remote buttons.
 
 Reference implementation: [`app/src/cloud/AqaraCloud.ts`](../app/src/cloud/AqaraCloud.ts) and the
-Python port [`custom_components/aqara_d100/cloud.py`](../custom_components/aqara_d100/cloud.py).
+Python port [`custom_components/aquara_local/cloud.py`](../custom_components/aquara_local/cloud.py).
 
 Auth: email/password login (RSA-wrapped, no OTP) → token; every request is `sign`-ed
 (`Appid&Nonce&Time[&Token]&body&appkey`, MD5). No `x-aes128gcm`. Base URL per region

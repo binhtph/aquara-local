@@ -6,7 +6,7 @@ the phone (or an ESP32 proxy) talks straight to the lock's GATT, with no hub in 
 
 Reference implementation: [`app/src/ble/LockController.ts`](../app/src/ble/LockController.ts),
 packet builders in [`app/src/protocol/lock.ts`](../app/src/protocol/lock.ts), and the Python
-port in [`custom_components/aqara_d100/`](../custom_components/aqara_d100/) (`ble.py`,
+port in [`custom_components/aquara_local/`](../custom_components/aquara_local/) (`ble.py`,
 `protocol.py`, `gatt.py`).
 
 > Cloud is still needed **once per session** to mint the BLE session key (ECDH is computed

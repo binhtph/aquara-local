@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Load-validate the aqara_d100 integration against a real Home Assistant install.
+"""Load-validate the aquara_local integration against a real Home Assistant install.
 
 Stronger than py_compile: actually imports every module under the real HA API,
 checks the manifest, and instantiates the config-flow class. Run with the
@@ -16,7 +16,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 CC = ROOT / "custom_components"
 sys.path.insert(0, str(CC))
 
-PKG = "aqara_d100"
+PKG = "aquara_local"
 MODS = [
     f"{PKG}.const",
     f"{PKG}.crypto",

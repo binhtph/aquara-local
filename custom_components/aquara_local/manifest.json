@@ -1,6 +1,6 @@
 {
-  "domain": "aqara_d100",
-  "name": "Aqara D100 Lock",
+  "domain": "aquara_local",
+  "name": "Aqara Local",
   "after_dependencies": ["bluetooth_adapters"],
   "codeowners": ["@duongvanba"],
   "config_flow": true,

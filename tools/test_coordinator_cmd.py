@@ -9,9 +9,9 @@ CC = pathlib.Path("/Users/baduongvan/dev/smarthome/d100-aquara-matter/custom_com
 sys.path.insert(0, str(CC))
 
 from homeassistant.exceptions import HomeAssistantError
-from aqara_d100.coordinator import AqaraD100Coordinator, LockInfo, LockState
-from aqara_d100.cloud import AqaraCloudError
-from aqara_d100.protocol import OPEN_OPEN
+from aquara_local.coordinator import AqaraD100Coordinator, LockInfo, LockState
+from aquara_local.cloud import AqaraCloudError
+from aquara_local.protocol import OPEN_OPEN
 
 LOCK = LockInfo(did="lumi.test", name="Test D100", mac="AA:BB:CC:DD:EE:FF")
 
