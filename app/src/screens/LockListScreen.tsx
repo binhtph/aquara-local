@@ -20,6 +20,12 @@ export default function LockListScreen({ auth, onLogout }: { auth: Auth; onLogou
   // làm mới số phiên cache khi quay lại danh sách (detail vừa đóng) / sau khi load
   useEffect(() => { refreshCacheCount(); }, [detail, loading, refreshCacheCount]);
 
+  const confirmLogout = useCallback(() => {
+    Alert.alert("Sign out?", "You'll need to sign in again with your Aqara email/password.",
+      [{ text: "Cancel", style: "cancel" },
+       { text: "Sign out", style: "destructive", onPress: async () => { await clearAuth(); onLogout(); } }]);
+  }, [onLogout]);
+
   const clearCache = useCallback(() => {
     if (!cacheCount) { Alert.alert("Session cache", "No sessions saved yet."); return; }
     Alert.alert("Clear session cache?",
@@ -83,8 +89,8 @@ export default function LockListScreen({ auth, onLogout }: { auth: Auth; onLogou
         <TouchableOpacity style={s.cacheBtn} onPress={clearCache} disabled={!cacheCount}>
           <Text style={[s.cacheBtnT, !cacheCount && s.cacheBtnTOff]}>Clear session cache</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.logoutBtn} onPress={async () => { await clearAuth(); onLogout(); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={s.logoutIcon}>⏻</Text>
+        <TouchableOpacity style={s.logoutBtn} onPress={confirmLogout} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={s.logoutIcon}>→]</Text>
           <Text style={s.logoutText}>Sign out</Text>
         </TouchableOpacity>
       </View>

@@ -25,8 +25,8 @@ export default function LoginScreen({ onDone }: { onDone: (a: Auth) => void }) {
   return (
     <ScrollView contentContainerStyle={s.c} keyboardShouldPersistTaps="handled">
       <View style={s.topRow}>
-        <Text style={s.title}>D100 Unlock</Text>
-        <TouchableOpacity onPress={toggle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <Text style={s.title}>Aquara Local</Text>
+        <TouchableOpacity style={s.themeToggle} onPress={toggle} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[s.themeIcon, { color: t.text }]}>{dark ? "☀︎" : "☾"}</Text>
         </TouchableOpacity>
       </View>
@@ -54,8 +54,9 @@ export default function LoginScreen({ onDone }: { onDone: (a: Auth) => void }) {
 }
 const makeStyles = (t: Palette) => StyleSheet.create({
   c: { padding: 24, paddingTop: 70, flexGrow: 1 },
-  topRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 28 },
-  title: { fontSize: 30, fontWeight: "800", color: t.text },
+  topRow: { alignItems: "center", justifyContent: "center", marginBottom: 28, minHeight: 34 },
+  title: { fontSize: 30, fontWeight: "800", color: t.text, textAlign: "center" },
+  themeToggle: { position: "absolute", right: 0, top: 4 },
   label: { fontSize: 13, color: t.sub, marginTop: 14, marginBottom: 6, fontWeight: "600" },
   input: { borderWidth: 1, borderColor: t.border, borderRadius: 10, padding: 13, fontSize: 16, backgroundColor: t.inputBg, color: t.text },
   pwdWrap: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: t.border, borderRadius: 10, backgroundColor: t.inputBg },
