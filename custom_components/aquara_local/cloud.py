@@ -94,6 +94,10 @@ async def login_with_password(
     district: str = DEFAULT_DISTRICT,
 ) -> dict[str, Any]:
     """Email/password login → {token, userId, nickName}. No OTP required."""
+    # China-mainland accounts always live under district "CN"; force it so a user who
+    # leaves the default "VN" while picking the CN region still authenticates.
+    if area == "CN":
+        district = "CN"
     body = json.dumps(
         {
             "account": email,
