@@ -4,9 +4,10 @@ import { hexToBytes, bytesToHex } from "../protocol/hex";
 
 const HOSTS: Record<string, string> = {
   SEA: "https://rpc-au.aqara.com",
-  CN: "https://rpc.aqara.cn",
+  CN: "https://aiot-rpc.ankasa.cn", // China mainland data centre (verified 2026-06)
   US: "https://rpc-us.aqara.com",
   EU: "https://rpc-ger.aqara.com",
+  KR: "https://rpc-kr.aqara.com",
 };
 const PREFIX = "/app/v1.0/lumi";
 

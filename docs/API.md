@@ -11,7 +11,7 @@ Everything has been **reverse-engineered + verified for real** (tested on a real
 ## Part 1 — CLOUD API
 
 ### 1.1 Base + transport
-- Base URL by `area`: `SEA → https://rpc-au.aqara.com`, `CN → rpc.aqara.cn`, `US → rpc-us.aqara.com`, `EU → rpc-ger.aqara.com`.
+- Base URL by `area`: `SEA → https://rpc-au.aqara.com`, `CN → https://aiot-rpc.ankasa.cn` (China mainland), `US → rpc-us.aqara.com`, `EU → rpc-ger.aqara.com`, `KR → rpc-kr.aqara.com`.
 - Prefix: `/app/v1.0/lumi`. HTTP/2 (OkHttp). JSON body `content-type: application/json; charset=utf-8`.
 - **Important:** the cloud is a **mirror**. Write commands for credentials/validity via the cloud are **NOT enforced on the lock** — they must be pushed over BLE (Part 2). The cloud is only for **reading** + syncing the display.
 

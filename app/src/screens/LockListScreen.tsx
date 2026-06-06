@@ -6,6 +6,17 @@ import { AqaraCloud, DeviceItem } from "../cloud/AqaraCloud";
 import LockDetailScreen from "./LockDetailScreen";
 import { listCachedSessionDids, sessionCount, clearAllSessions, MAX_SESSIONS } from "../ble/sessionCache";
 
+// Friendly name for the known Aqara lock models (falls back to the raw model id).
+const MODEL_NAMES: Record<string, string> = {
+  "aqara.lock.acn001": "Smart Lock A100 Pro",
+  "aqara.lock.aqgl01": "Door Lock D100",
+  "lumi.lock.acn05": "Door Lock N100",
+  "lumi.lock.acn03": "Door Lock N200",
+};
+function lockModelLabel(model: string): string {
+  return MODEL_NAMES[model] ?? model;
+}
+
 export default function LockListScreen({ auth, onLogout }: { auth: Auth; onLogout: () => void }) {
   const { t, dark, toggle } = useTheme();
   const s = useMemo(() => makeStyles(t), [t]);
@@ -74,6 +85,7 @@ export default function LockListScreen({ auth, onLogout }: { auth: Auth; onLogou
               <TouchableOpacity style={s.card} onPress={() => setDetail(item)}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.name}>{item.name}</Text>
+                  {!!item.model && <Text style={s.model}>{lockModelLabel(item.model)}</Text>}
                   <Text style={s.did}>{item.did}</Text>
                   <Text style={s.detailHint}>View details & manage ›</Text>
                 </View>
@@ -104,6 +116,7 @@ const makeStyles = (t: Palette) => StyleSheet.create({
   themeIcon: { fontSize: 22 },
   card: { flexDirection: "row", alignItems: "center", backgroundColor: t.card, borderRadius: 14, padding: 16, marginBottom: 12 },
   name: { fontSize: 17, fontWeight: "700", color: t.text },
+  model: { color: t.accent, fontSize: 12.5, fontWeight: "600", marginTop: 2 },
   did: { color: t.sub, fontSize: 12, marginTop: 2 },
   detailHint: { color: t.accent, fontSize: 12, marginTop: 6 },
   empty: { textAlign: "center", color: t.sub, marginTop: 40 },

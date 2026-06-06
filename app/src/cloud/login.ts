@@ -13,10 +13,14 @@ import { Buffer } from "buffer";
 
 const HOSTS: Record<string, string> = {
   SEA: "https://rpc-au.aqara.com",
-  CN: "https://rpc.aqara.cn",
+  CN: "https://aiot-rpc.ankasa.cn", // China mainland data centre (verified 2026-06)
   US: "https://rpc-us.aqara.com",
   EU: "https://rpc-ger.aqara.com",
+  KR: "https://rpc-kr.aqara.com",
 };
+// The "district" field in the login body is the account's home country. It only
+// has to be consistent for the region; CN accounts use "CN", everyone else "VN".
+const DISTRICTS: Record<string, string> = { CN: "CN" };
 const PATH = "/app/v1.0/lumi/user/guard-code/login";
 
 // RSA pubkey hằng số (trích từ LumiDevSDK.getCert(), cert RSA-1024 của Lumi). e=65537.
@@ -76,8 +80,9 @@ export async function loginWithPassword(email: string, password: string, area = 
   const pwB64 = Buffer.from(pwEnc).toString("base64");
 
   // 2) body JSON (thứ tự field cố định để sign khớp)
+  const district = DISTRICTS[area] ?? "VN";
   const body = JSON.stringify({
-    account: email, district: "VN", encryptType: 2, guardCode: "", password: pwB64,
+    account: email, district, encryptType: 2, guardCode: "", password: pwB64,
   });
 
   // 3) sign trên body PLAINTEXT, token rỗng

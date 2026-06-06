@@ -8,8 +8,11 @@ Python port [`custom_components/aquara_local/cloud.py`](../custom_components/aqu
 
 Auth: email/password login (RSA-wrapped, no OTP) → token; every request is `sign`-ed
 (`Appid&Nonce&Time[&Token]&body&appkey`, MD5). No `x-aes128gcm`. Base URL per region
-(SEA→`rpc-au`, CN→`rpc.aqara.cn`, US→`rpc-us`, EU→`rpc-ger`, KR→`rpc-kr`), prefix
-`/app/v1.0/lumi`.
+(SEA→`rpc-au`, CN→`aiot-rpc.ankasa.cn` (China mainland), US→`rpc-us`, EU→`rpc-ger`,
+KR→`rpc-kr`), prefix `/app/v1.0/lumi`. Login is federated across regions but devices live in
+exactly one data centre, so you must sign in to the region the account is registered in. The
+China-mainland cloud uses the `ankasa.cn` domain (NOT `rpc.aqara.cn`) yet the same appid/appKey,
+`sign`, and plaintext login body — so swapping the host is all that's needed.
 
 ## 1. Control — Matter DoorLock trait writes  (`POST /matter/write`)
 

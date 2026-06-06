@@ -15,9 +15,13 @@ APPKEY = "uOJy0qmKwXj6aHUB2KQEIJuXHMDVTAJi"
 
 # Base URL per area. The header literal "area" is the *key* below (e.g. "SEA"),
 # while the host depends on the data centre. A VN account lives on SEA → rpc-au.
+# China mainland lives on its own data centre under the *ankasa.cn* domain
+# (aiot-rpc.ankasa.cn), NOT rpc.aqara.cn — verified 2026-06 by MITM of the China
+# Aqara Home app. Same appid/appKey/sign and the server accepts a plaintext login
+# body (no x-aes128gcm needed), so it behaves exactly like the other regions.
 CLOUD_HOSTS: dict[str, str] = {
     "SEA": "https://rpc-au.aqara.com",
-    "CN": "https://rpc.aqara.cn",
+    "CN": "https://aiot-rpc.ankasa.cn",
     "US": "https://rpc-us.aqara.com",
     "EU": "https://rpc-ger.aqara.com",
     "KR": "https://rpc-kr.aqara.com",

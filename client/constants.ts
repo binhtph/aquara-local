@@ -9,7 +9,7 @@ export const APPKEY = "uOJy0qmKwXj6aHUB2KQEIJuXHMDVTAJi";
 /** Base URL theo area (account này = SEA → rpc-au). HTTP/2. */
 export const CLOUD_HOSTS: Record<string, string> = {
   SEA: "https://rpc-au.aqara.com",
-  CN: "https://rpc.aqara.cn",
+  CN: "https://aiot-rpc.ankasa.cn", // China mainland data centre (verified 2026-06)
   US: "https://rpc-us.aqara.com",
   EU: "https://rpc-ger.aqara.com",
   KR: "https://rpc-kr.aqara.com",

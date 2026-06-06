@@ -7,16 +7,25 @@ You sign in with your normal **Aqara Home email + password**; the integration ta
 Aqara cloud the same way the official app does, and (where possible) directly to your hub on
 the LAN. Everything here is reverse-engineered for **interoperability with devices you own**.
 
-> Status: early but working. **Currently supports the Aqara Door Lock D100** (`dp1a` /
-> `aqara.lock.aqgl01`). More Aqara devices may follow — the cloud/local plumbing is generic.
+> Status: early but working. **Door Lock D100** (`aqara.lock.aqgl01`) has full cloud control;
+> other Aqara locks such as the **Smart Lock A100 Pro** (`aqara.lock.acn001`) are discovered and
+> fully manageable from the cloud (status, users, credentials, history) — see the table for the
+> per-model unlock path. The cloud/local plumbing is generic across Aqara locks and regions.
 
 ---
 
 ## Supported devices
 
-| Device | Unlock / Lock | Status & battery | Users / credentials | Notes |
-|--------|:---:|:---:|:---:|-------|
-| **Door Lock D100** | ✅ cloud | ✅ | ✅ read; mgmt WIP | Zigbee + BLE + HomeKey lock |
+| Device | Model | Unlock / Lock | Status & battery | Users / credentials | Notes |
+|--------|-------|:---:|:---:|:---:|-------|
+| **Door Lock D100** | `aqara.lock.aqgl01` | ✅ cloud (`/matter/write`) | ✅ | ✅ read; mgmt WIP | Zigbee + BLE + HomeKey lock |
+| **Smart Lock A100 Pro** | `aqara.lock.acn001` | ⚠️ BLE-only (no cloud unlock) | ✅ | ✅ | Zigbee child of an E1 hub; remote unlock is BLE end-to-end, so cloud `/matter/write` is a no-op |
+
+> Any Aqara lock whose model contains `lock`/`aqgl`/`dp1a` is auto-discovered and its cloud
+> read/management features work. **Unlock differs per model**: the D100 exposes a cloud command
+> (`/matter/write`); the A100 Pro only unlocks over its BLE end-to-end channel, so a remote
+> cloud unlock isn't possible — the integration reports the real `lock_state` instead of a false
+> success.
 
 ## Features
 
@@ -39,10 +48,13 @@ the LAN. Everything here is reverse-engineered for **interoperability with devic
    `https://github.com/duongvanba/aquara-local` as category **Integration**.
 2. Install **Aqara Local**, then **restart Home Assistant**.
 3. **Settings → Devices & Services → Add Integration → Aqara Local**.
-4. Enter your **Aqara Home email + password**, pick the **server region** (Vietnam/SEA → `SEA`)
-   and **district** (e.g. `VN`). Locks are discovered automatically.
+4. Enter your **Aqara Home email + password** and pick the **server region** your account is
+   registered in. Aqara federates login but binds your devices to one data centre, so you must
+   pick the right region to see your locks (China-mainland accounts → `CN`). Locks are then
+   discovered automatically.
 
-Regions: `SEA` (rpc-au) · `CN` (rpc.aqara.cn) · `US` (rpc-us) · `EU` (rpc-ger) · `KR` (rpc-kr).
+Regions: `SEA` (rpc-au) · `CN` (**aiot-rpc.ankasa.cn** — China mainland) · `US` (rpc-us) ·
+`EU` (rpc-ger) · `KR` (rpc-kr).
 
 ## Requirements
 
