@@ -1,0 +1,44 @@
+# ESP32-S3 board (esp32-s3-devkitc-1 — same hardware as the ESPHome proxy was on).
+CONFIG_IDF_TARGET="esp32s3"
+
+# -- Flash & partitions --------------------------------------------------------
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# -- BLE host: NimBLE only (no Bluedroid → smaller + no bluetooth_proxy bug) ----
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_BLUEDROID_ENABLED=
+CONFIG_BT_CONTROLLER_ENABLED=y
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=y
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=y
+# We don't broadcast / accept connections.
+CONFIG_BT_NIMBLE_ROLE_BROADCASTER=
+CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=
+# Aqara D100 doesn't bond at LL layer (encryption is app-level AES-CCM), no SM.
+CONFIG_BT_NIMBLE_SM_LEGACY=
+CONFIG_BT_NIMBLE_SM_SC=
+# More room for multi-packet handshake frames + ATT MTU.
+CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU=247
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+CONFIG_BT_NIMBLE_HOST_TASK_STACK_SIZE=5120
+
+# -- Power / coex --------------------------------------------------------------
+# WiFi + BLE share radio on ESP32-S3; enable coexistence so neither starves.
+CONFIG_ESP_COEX_SW_COEXIST_ENABLE=y
+
+# -- WiFi (STA only, connect to home AP) ---------------------------------------
+CONFIG_ESP_WIFI_NVS_ENABLED=y
+CONFIG_LWIP_MAX_SOCKETS=10
+CONFIG_LWIP_TCP_HIGH_SPEED_RETRANSMISSION=y
+
+# -- Logging / debug -----------------------------------------------------------
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_UART_DEFAULT=
+
+# -- App task tuning ------------------------------------------------------------
+# TCP server + line buffer want a decent stack.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+CONFIG_FREERTOS_HZ=1000

@@ -55,13 +55,19 @@ wifi:
 
 captive_portal:
 
-# Lắng nghe quảng bá BLE — interval≈window để nghe gần như liên tục (advert khoá thưa).
+# Lắng nghe quảng bá BLE.
+# ⚠️ KHÔNG để window=interval (duty 100%) — ESP32 chỉ có 1 radio, scan liên tục sẽ
+# chèn vào lệnh CONNECT khiến GATT connect timeout (điện thoại không bị vì
+# CoreBluetooth/Android tự pause scan, ESP-IDF bluetooth_proxy thì không).
+# 320/30ms ≈ 9% duty: vẫn nghe được advert thưa của khoá mà connect vẫn chen được.
 esp32_ble_tracker:
   scan_parameters:
     active: true
-    interval: 1100ms
-    window: 1100ms
+    interval: 320ms
+    window: 30ms
 
 # Cho phép HA/central kết nối GATT ra ngoài (BẮT BUỘC để mở khoá, không chỉ đọc advert).
+# connections: 3 — đủ slot cho HA + script test chạy song song.
 bluetooth_proxy:
   active: true
+  connections: 3
